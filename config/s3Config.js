@@ -6,6 +6,8 @@ module.exports = {
     //아래 image--- 키 이름은 임의로 정해도 된다.
     "imageDir" : "photos",
     "bgDir" : "bg",
+    "itemsDir" : "items",
+    "thumbnailDir" : "thumbnail",
     "imageACL" : "public-read"
 }
 
