@@ -1,5 +1,4 @@
 var sk;
-var pool = require('../config/dbpool')
 
 
 var conn = pool.getConnection(function(err, connection) {

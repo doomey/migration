@@ -11,8 +11,6 @@ var bcrypt = require('bcrypt');
 var sqlAes = require('./sqlAES');
 var XLSX = require('xlsx');
 
-var serverKey = process.env.GREEN_SERVER_KEY;
-
 sqlAes.setServerKey(serverKey);
 
 router.get('/', function(req, res, next) {
