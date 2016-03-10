@@ -7,6 +7,7 @@ module.exports = {
     "imageDir" : "photos",
     "bgDir" : "bg",
     "itemsDir" : "items",
+    "multimediaDir" : "multimedia",
     "thumbnailDir" : "thumbnail",
     "imageACL" : "public-read"
 }

@@ -115,7 +115,7 @@ router.get('/', function(req, res, next) {
     async.eachSeries(sheet, function (item, callback) {
       var location = "";
       var mimeType = mime.lookup(item.picture);
-      var filepath = path.join(__dirname, '../uploads/', item.picture)
+      var filepath = path.join(__dirname, '../uploads/items', item.picture)
       fs.stat(filepath, function (err, stats) { //경로에 파일이 있는지 확인한다.
         if (err) {
           console.log('요청하신 파일' + item.picture + '이(가) 존재하지 않습니다.');
@@ -152,7 +152,6 @@ router.get('/', function(req, res, next) {
                   "values (?, ?, ?, ?, ?, ?)";
                 connection.query(sql, [item.name, item.description, item.price, location, item.sdate, item.edate], function (err, result) {
                   if (err) {
-                    connection.release();
                     console.log('왜? 애러남?');
                     callback(err);
                   } else {
@@ -166,12 +165,11 @@ router.get('/', function(req, res, next) {
         }
       });
     }, function (err) {
+        connection.release();
         if (err) {
-          connection.release();
           console.log("fail!!!");
           callback(err);
         } else {
-          connection.release();
           console.log("success!!!");
           callback(null, resultArr);
         }
@@ -221,7 +219,6 @@ router.get('/', function(req, res, next) {
                   "values (?, ?, ?, ?, ?, ?, ?)";
                 connection.query(sql, [location, item.uploaddate, item.originalfilename, modifiedfile, mimeType, item.refer_type, item.refer_id], function (err, result) {
                   if (err) {
-                    connection.release();
                     console.log('왜? 애러남?');
                     callback(err);
                   } else {
@@ -235,12 +232,11 @@ router.get('/', function(req, res, next) {
         }
       });
     }, function (err) {
+      connection.release();
       if (err) {
-        connection.release();
         console.log("fail!!!");
         callback(err);
       } else {
-        connection.release();
         console.log("success!!!");
         callback(null, resultArr);
       }
@@ -267,7 +263,7 @@ router.get('/', function(req, res, next) {
             "region": s3Config.region,
             "params": {
               "Bucket": s3Config.bucket,
-              "Key": s3Config.imageDir + "/" + modifiedfile,
+              "Key": s3Config.bgDir + "/" + modifiedfile,
               "ACL": s3Config.imageACL,
               "ContentType": mimeType //mime.lookup
             }
@@ -289,7 +285,6 @@ router.get('/', function(req, res, next) {
                   "values (?, ?)";
                 connection.query(sql, [item.name, location], function (err, result) {
                   if (err) {
-                    connection.release();
                     console.log('왜? 애러남?');
                     callback(err);
                   } else {
@@ -303,12 +298,11 @@ router.get('/', function(req, res, next) {
         }
       });
     }, function (err) {
+      connection.release();
       if (err) {
-        connection.release();
         console.log("fail!!!");
         callback(err);
       } else {
-        connection.release();
         console.log("success!!!");
         callback(null, resultArr);
       }
@@ -369,33 +363,101 @@ router.get('/', function(req, res, next) {
     });
   }
 
+
   function insertPromotion(connection, callback) {
     var resultArr = [];
     async.eachSeries(sheet, function (item, callback) {
-      var sql = "insert into ePromotion(title, c_name, sdate, edate, content, iparty_id)" +
-        "values(?, ?, ?, ?, ?, ?)";
-      connection.query(sql, [item.title, item.c_name, item.sdate, item.edate, item.content, item.iparty_id], function (err, result) {
+      var location = "";
+      var mimeType = mime.lookup(item.file);
+      var filepath = path.join(__dirname, '../uploads/multimedia', item.file)
+      fs.stat(filepath, function (err, stats) { //경로에 파일이 있는지 확인한다.
         if (err) {
-          var err = new Error('ePromotion 데이터 생성에 실패하였습니다.');
+          console.log('요청하신 파일' + item.file + '이(가) 존재하지 않습니다.');
+          callback(null);
         } else {
-          var result = {
-            "id": result.insertId,
-            "title" : item.title
-          }
-          resultArr.push(result);
+          var modifiedfile = uuid.v4() + item.file;
+          console.log(filepath);
+          var body = fs.createReadStream(filepath);
+          var s3 = new AWS.S3({
+            "accessKeyId": s3Config.key,
+            "secretAccessKey": s3Config.secret,
+            "region": s3Config.region,
+            "params": {
+              "Bucket": s3Config.bucket,
+              "Key": s3Config.multimediaDir + "/" + modifiedfile,
+              "ACL": s3Config.imageACL,
+              "ContentType": mimeType //mime.lookup
+            }
+          });
+          s3.upload({"Body": body}) //pipe역할
+            .on('httpUploadProgress', function (event) {
+              console.log(event);
+            })
+            .send(function (err, data) {
+              if (err) {
+                console.log(err);
+                callback(err);
+              } else {
+                location = data.Location;
+                fs.unlink(filepath, function () {
+                  console.log(filepath + " 파일이 삭제되었습니다...");
+                });
+                var sql = "insert into epromotion(title, c_name, sdate, edate, content, iparty_id, fileurl, uploaddate, originalfilename, modifiedfilename, filetype)" +
+                  "values(?, ?, ?, ?, ?, ?, ?, now(), ?, ?, ?)";
+                connection.query(sql, [item.title, item.c_name, item.sdate, item.edate, item.content, item.iparty_id, location, item.file, modifiedfile, mimeType], function (err, result) {
+                  if (err) {
+                    var err = new Error('ePromotion 데이터 생성에 실패하였습니다.');
+                  } else {
+                    var result = {
+                      "id": result.insertId,
+                      "title" : item.title
+                    }
+                    resultArr.push(result);
+                  }
+                  callback(null);
+                });
+              }
+            });
         }
-        callback(null);
       });
     }, function (err) {
       connection.release();
       if (err) {
+        console.log("fail!!!");
         callback(err);
       } else {
-        console.log("ePromotion Data insert: " + resultArr);
-        callback(null, resultArr)
+        console.log("success!!!");
+        callback(null, resultArr);
       }
     });
   }
+  //function insertPromotion(connection, callback) {
+  //  var resultArr = [];
+  //  async.eachSeries(sheet, function (item, callback) {
+  //    var sql = "insert into epromotion(title, c_name, sdate, edate, content, iparty_id, )" +
+  //      "values(?, ?, ?, ?, ?, ?)";
+  //    connection.query(sql, [item.title, item.c_name, item.sdate, item.edate, item.content, item.iparty_id], function (err, result) {
+  //      if (err) {
+  //        var err = new Error('ePromotion 데이터 생성에 실패하였습니다.');
+  //      } else {
+  //        var result = {
+  //          "id": result.insertId,
+  //          "title" : item.title
+  //        }
+  //        resultArr.push(result);
+  //      }
+  //      callback(null);
+  //    });
+  //  }, function (err) {
+  //    connection.release();
+  //    if (err) {
+  //      callback(err);
+  //    } else {
+  //      console.log("ePromotion Data insert: " + resultArr);
+  //      callback(null, resultArr)
+  //    }
+  //  });
+  //}
 
   function inserteDiary(connection, callback) {
     var resultArr = [];
