@@ -376,7 +376,7 @@ router.get('/', function(req, res, next) {
         "values(?, ?, ?, ?, ?, ?)";
       connection.query(sql, [item.title, item.c_name, item.sdate, item.edate, item.content, item.iparty_id], function (err, result) {
         if (err) {
-          var err = new Error('carts 데이터 생성에 실패하였습니다.');
+          var err = new Error('ePromotion 데이터 생성에 실패하였습니다.');
         } else {
           var result = {
             "id": result.insertId,
