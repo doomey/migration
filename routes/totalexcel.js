@@ -425,6 +425,140 @@ router.get('/', function(req, res, next) {
     });
   }
 
+  function insertDaddress(connection, callback){
+    var resultArr = [];
+    var sql = "insert into daddress(ad_code, iparty_id, name, receiver, phone, add_phone, address) " +
+      "values(?, ?, "  +
+      sqlAes.encrypt(5) +
+      ")";
+    async.eachSeries(sheet, function(item, cb){
+      connection.query(sql, [item.ad_code, item.iparty_id, item.name, item.receiver, item.phone, item.add_phone, item.address], function(err, result){
+        if(err){
+          cb(err);
+        } else {
+          var list = {
+            "id" : result.insertId
+          }
+          resultArr.push(list);
+          cb(null);
+        }
+      });
+    }, function(err){
+      connection.release();
+      if(err){
+        callback(err);
+      } else {
+        callback(null, resultArr);
+      }
+    });
+  }
+
+  function insertReply(connection, callback){
+    var resultArr = [];
+    var sql = "insert into reply(body, wdatetime, ediary_id, iparty_id) " +
+      "values(?, ?, ?, ?)";
+    async.eachSeries(sheet, function(item, cb){
+      connection.query(sql, [item.body, item.wdatetime, item.ediary_id, item.iparty_id], function(err, result){
+        if(err){
+          cb(err);
+        } else {
+          var result = {
+            "id" : result.insertId
+          }
+          resultArr.push(result);
+          cb(null);
+        }
+      });
+    }, function(err){
+      connection.release();
+      if(err){
+        callback(err);
+      } else {
+        callback(null, resultArr);
+      }
+    });
+  }
+
+  function insertArticle(connection, callback){
+    var resultArr = [];
+    var sql = "insert into article(title, body, wdatetime, board_id) " +
+      "values(?, ?, ?, ?)";
+    async.eachSeries(sheet, function(item, cb){
+      connection.query(sql, [item.title, item.body, item.wdatetime, item.board_id], function(err, result){
+        if(err){
+          cb(err);
+        } else {
+          var result = {
+            "id" : result.insertId
+          }
+          resultArr.push(result);
+          cb(null);
+        }
+      });
+    }, function(err){
+      connection.release();
+      if(err){
+        callback(err);
+      } else {
+        callback(null, resultArr);
+      }
+    });
+  }
+
+  function insertOrders(connection, callback){
+    var resultArr = [];
+    var sql = "insert into orders(iparty_id, date, adcode, care, receiver, phone, addphone, address) " +
+      "values(?, ?, ?, ?, " +
+      sqlAes.encrypt(4) +
+      ")";
+    async.eachSeries(sheet, function(item, cb){
+      connection.query(sql, [item.iparty_id, item.date, item.adcode, item.care, item.receiver, item.phone, item.addphone, item.address], function(err, result){
+        if(err){
+          cb(err);
+        } else {
+          var list = {
+            "id" : result.insertId
+          }
+          resultArr.push(list);
+          cb(null);
+        }
+      });
+    }, function(err){
+      connection.release();
+      if(err){
+        callback(err);
+      } else {
+        callback(null, resultArr);
+      }
+    });
+  }
+
+  function insertOrderdetails(connection, callback){
+    var resultArr = [];
+    var sql = "insert into orderdetails(order_id, quantity, greenitems_id) " +
+      "values(?, ?, ?)";
+    async.eachSeries(sheet, function(item, cb){
+      connection.query(sql, [item.order_id, item.quantity, item.greenitems_id], function(err, result){
+        if(err){
+          cb(err);
+        } else {
+          var list = {
+            "id" : result.insertId
+          }
+          resultArr.push(list);
+          cb(null);
+        }
+      });
+    }, function(err){
+      connection.release();
+      if(err){
+        callback(err);
+      } else {
+        callback(null, resultArr);
+      }
+    });
+  }
+
 
 
   async.eachSeries(workbook.SheetNames, function (item, callback) {
@@ -511,6 +645,53 @@ router.get('/', function(req, res, next) {
           callback(null);
         }
       });
+    } else if (sheet_name === "daddress"){
+      async.waterfall([getConnection, insertDaddress], function (err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          console.log(result);
+          callback(null);
+        }
+      });
+    } else if (sheet_name === "orders"){
+      async.waterfall([getConnection, insertOrders], function (err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          console.log(result);
+          callback(null);
+        }
+      });
+    } else if (sheet_name === "orderdetails"){
+      async.waterfall([getConnection, insertOrderdetails], function (err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          console.log(result);
+          callback(null);
+        }
+      });
+    } else if (sheet_name === "article"){
+      async.waterfall([getConnection, insertArticle], function (err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          console.log(result);
+          callback(null);
+        }
+      });
+    } else if (sheet_name === "reply"){
+      async.waterfall([getConnection, insertReply], function (err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          console.log(result);
+          callback(null);
+        }
+      });
+    } else {
+      console.log(sheet_name + '해당 기능이 없습니다.');
     }
 
 
