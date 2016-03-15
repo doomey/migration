@@ -15,7 +15,7 @@ sqlAes.setServerKey(serverKey);
 
 router.get('/', function(req, res, next) {
 
-  var workbook = XLSX.readFile(path.join(__dirname, '../uploads/excel', 'datatable.xlsx'));
+  var workbook = XLSX.readFile(path.join(__dirname, '../uploads/excel', 'datatable5.xlsx'));
   var sheet;
 
   function getConnection(callback) {
@@ -113,66 +113,26 @@ router.get('/', function(req, res, next) {
   function insertGreenItems(connection, callback) {
     var resultArr = [];
     async.eachSeries(sheet, function (item, callback) {
-      var location = "";
-      var mimeType = mime.lookup(item.picture);
-      var filepath = path.join(__dirname, '../uploads/items', item.picture)
-      fs.stat(filepath, function (err, stats) { //경로에 파일이 있는지 확인한다.
+      var sql = "insert into greenitems(name, description, price, sdate, edate) " +
+        "values (?, ?, ?, ?, ?)";
+      connection.query(sql, [item.name, item.description, item.price, item.sdate, item.edate], function (err, result) {
         if (err) {
-          console.log('요청하신 파일' + item.picture + '이(가) 존재하지 않습니다.');
-          callback(null);
+          console.log('왜? 애러남?');
+          callback(err);
         } else {
-          var modifiedfile = uuid.v4() + item.picture;
-          console.log(filepath);
-          var body = fs.createReadStream(filepath);
-          var s3 = new AWS.S3({
-            "accessKeyId": s3Config.key,
-            "secretAccessKey": s3Config.secret,
-            "region": s3Config.region,
-            "params": {
-              "Bucket": s3Config.bucket,
-              "Key": s3Config.itemsDir + "/" + modifiedfile,
-              "ACL": s3Config.imageACL,
-              "ContentType": mimeType //mime.lookup
-            }
-          });
-          s3.upload({"Body": body}) //pipe역할
-            .on('httpUploadProgress', function (event) {
-              console.log(event);
-            })
-            .send(function (err, data) {
-              if (err) {
-                console.log(err);
-                callback(err);
-              } else {
-                location = data.Location;
-                fs.unlink(filepath, function () {
-                  console.log(filepath + " 파일이 삭제되었습니다...");
-                });
-                var sql = "insert into greenitems(name, description, price, picture, sdate, edate) " +
-                  "values (?, ?, ?, ?, ?, ?)";
-                connection.query(sql, [item.name, item.description, item.price, location, item.sdate, item.edate], function (err, result) {
-                  if (err) {
-                    console.log('왜? 애러남?');
-                    callback(err);
-                  } else {
-                    console.log('장난침?');
-                    resultArr.push(result.insertId);
-                    callback(null);
-                  }
-                });
-              }
-            });
+          console.log('장난침?');
+          resultArr.push(result.insertId);
+          callback(null);
         }
       });
     }, function (err) {
-        connection.release();
-        if (err) {
-          console.log("fail!!!");
-          callback(err);
-        } else {
-          console.log("success!!!");
-          callback(null, resultArr);
-        }
+      connection.release();
+      if (err) {
+        callback(err);
+      } else {
+        console.log("Greenitems Data insert: " + resultArr);
+        callback(null, resultArr)
+      }
     });
   }
 
@@ -216,8 +176,8 @@ router.get('/', function(req, res, next) {
                   console.log(filepath + " 파일이 삭제되었습니다...");
                 });
                 var sql = "insert into photos(photourl, uploaddate, originalfilename, modifiedfilename, phototype, refer_type, refer_id) " +
-                  "values (?, ?, ?, ?, ?, ?, ?)";
-                connection.query(sql, [location, item.uploaddate, item.originalfilename, modifiedfile, mimeType, item.refer_type, item.refer_id], function (err, result) {
+                  "values (?, now(), ?, ?, ?, ?, ?)";
+                connection.query(sql, [location, item.originalfilename, modifiedfile, mimeType, item.refer_type, item.refer_id], function (err, result) {
                   if (err) {
                     console.log('왜? 애러남?');
                     callback(err);
@@ -246,68 +206,31 @@ router.get('/', function(req, res, next) {
   function insertBg(connection, callback) {
     var resultArr = [];
     async.eachSeries(sheet, function (item, callback) {
-      var location = "";
-      var mimeType = mime.lookup(item.file);
-      var filepath = path.join(__dirname, '../uploads/bg', item.file)
-      fs.stat(filepath, function (err, stats) { //경로에 파일이 있는지 확인한다.
+      var sql = "insert into background(name) " +
+        "values (?)";
+      connection.query(sql, [item.name], function (err, result) {
         if (err) {
-          console.log('요청하신 파일' + item.file + '이(가) 존재하지 않습니다.');
-          callback(null);
+          var err = new Error('Bg 데이터 생성에 실패하였습니다.');
         } else {
-          var modifiedfile = uuid.v4() + item.file;
-          console.log(filepath);
-          var body = fs.createReadStream(filepath);
-          var s3 = new AWS.S3({
-            "accessKeyId": s3Config.key,
-            "secretAccessKey": s3Config.secret,
-            "region": s3Config.region,
-            "params": {
-              "Bucket": s3Config.bucket,
-              "Key": s3Config.bgDir + "/" + modifiedfile,
-              "ACL": s3Config.imageACL,
-              "ContentType": mimeType //mime.lookup
-            }
-          });
-          s3.upload({"Body": body}) //pipe역할
-            .on('httpUploadProgress', function (event) {
-              console.log(event);
-            })
-            .send(function (err, data) {
-              if (err) {
-                console.log(err);
-                callback(err);
-              } else {
-                location = data.Location;
-                fs.unlink(filepath, function () {
-                  console.log(filepath + " 파일이 삭제되었습니다...");
-                });
-                var sql = "insert into background(name, path) " +
-                  "values (?, ?)";
-                connection.query(sql, [item.name, location], function (err, result) {
-                  if (err) {
-                    console.log('왜? 애러남?');
-                    callback(err);
-                  } else {
-                    console.log('장난침?');
-                    resultArr.push(result.insertId);
-                    callback(null);
-                  }
-                });
-              }
-            });
+          var result = {
+            "id ": result.insertId,
+            "name": item.name
+          }
+          resultArr.push(result);
         }
+        callback(null);
       });
     }, function (err) {
       connection.release();
       if (err) {
-        console.log("fail!!!");
         callback(err);
       } else {
-        console.log("success!!!");
-        callback(null, resultArr);
+        console.log("Bg Data insert: " + resultArr);
+        callback(null, resultArr)
       }
     });
   }
+
 
   function insertlHistory(connection, callback) {
     var resultArr = [];
@@ -339,7 +262,7 @@ router.get('/', function(req, res, next) {
   function insertCarts(connection, callback) {
     var resultArr = [];
     async.eachSeries(sheet, function (item, callback) {
-      var sql = "insert into carts(greenitems_id, iparty_id, quantity)" +
+      var sql = "insert into cart(greenitems_id, iparty_id, quantity) " +
         "values(?, ?, ?)";
       connection.query(sql, [item.greenitems_id, item.iparty_id, item.quantity], function (err, result) {
         if (err) {
@@ -402,7 +325,7 @@ router.get('/', function(req, res, next) {
                 fs.unlink(filepath, function () {
                   console.log(filepath + " 파일이 삭제되었습니다...");
                 });
-                var sql = "insert into epromotion(title, c_name, sdate, edate, content, iparty_id, fileurl, uploaddate, originalfilename, modifiedfilename, filetype)" +
+                var sql = "insert into epromotion(title, cname, sdate, edate, content, iparty_id, fileurl, uploaddate, originalfilename, modifiedfilename, filetype)" +
                   "values(?, ?, ?, ?, ?, ?, ?, now(), ?, ?, ?)";
                 connection.query(sql, [item.title, item.c_name, item.sdate, item.edate, item.content, item.iparty_id, location, item.file, modifiedfile, mimeType], function (err, result) {
                   if (err) {
@@ -431,33 +354,6 @@ router.get('/', function(req, res, next) {
       }
     });
   }
-  //function insertPromotion(connection, callback) {
-  //  var resultArr = [];
-  //  async.eachSeries(sheet, function (item, callback) {
-  //    var sql = "insert into epromotion(title, c_name, sdate, edate, content, iparty_id, )" +
-  //      "values(?, ?, ?, ?, ?, ?)";
-  //    connection.query(sql, [item.title, item.c_name, item.sdate, item.edate, item.content, item.iparty_id], function (err, result) {
-  //      if (err) {
-  //        var err = new Error('ePromotion 데이터 생성에 실패하였습니다.');
-  //      } else {
-  //        var result = {
-  //          "id": result.insertId,
-  //          "title" : item.title
-  //        }
-  //        resultArr.push(result);
-  //      }
-  //      callback(null);
-  //    });
-  //  }, function (err) {
-  //    connection.release();
-  //    if (err) {
-  //      callback(err);
-  //    } else {
-  //      console.log("ePromotion Data insert: " + resultArr);
-  //      callback(null, resultArr)
-  //    }
-  //  });
-  //}
 
   function inserteDiary(connection, callback) {
     var resultArr = [];
