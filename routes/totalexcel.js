@@ -45,17 +45,17 @@ router.get('/', function(req, res, next) {
         sqlAes.encrypt(2) +
         ")";
 
-    async.each(sheet, function(item, cb){
+    async.eachSeries(sheet, function(item, cb){
       //console.log("test : " + item);
       //console.log("변형되어야 할 값 1: " + item.hashpassword);
       bcrypt.hash(item.hashpassword, salt, function(err, hashPassword){
         if(err){
-          callback(err);
+          cb(err);
         } else {
           //console.log("변형되어야 할 값 : " + sheet[i].hashpassword);
           connection.query(sql, [item.username, hashPassword, item.nickname, item.partytype, item.name, item.phone], function(err, result) {
             if(err){
-              callback(err);
+              cb(err);
             } else {
               var result = {
                 "id" : result.insertId,
@@ -65,19 +65,20 @@ router.get('/', function(req, res, next) {
                 "password" : hashPassword
               }
               //console.log(result);
-              cb(null, result);
+              cb(null);
             }
           });
 
         }
       })
 
-    }, function(err, result){
+    }, function(err){
+      connection.release();
       if(err){
         callback(err);
       } else {
         //console.log(result);
-        callback(null, result);
+        callback(null);
       }
     })
   }
@@ -85,7 +86,7 @@ router.get('/', function(req, res, next) {
   function insertBoard(connection, callback) {
     var resultArr = [];
     async.eachSeries(sheet, function (item, callback) {
-      var sql = "insert into board(name)" +
+      var sql = "insert into board(name) " +
         "values(?)"
       connection.query(sql, [item.name], function (err, result) {
         if (err) {
